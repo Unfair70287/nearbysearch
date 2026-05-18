@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>探索你的周遭</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: #0A0A0F;
+    color: #F0EDE8;
+    font-family: 'Noto Serif TC', Georgia, serif;
+    overflow-x: hidden;
+  }
+
+  .grain {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.5;
+  }
+
+  .glow {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    text-align: center;
+    z-index: 1;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(232,93,38,0.12); border: 1px solid rgba(232,93,38,0.3);
+    border-radius: 100px; padding: 6px 16px; margin-bottom: 32px;
+    font-size: 13px; letter-spacing: 0.1em; color: #E8956A;
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #E85D26;
+  }
+
+  h1 {
+    font-size: clamp(42px, 10vw, 72px);
+    font-weight: 300;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    animation: fadeUp 0.7s ease 0.1s both;
+  }
+
+  h1 strong {
+    font-weight: 700;
+    background: linear-gradient(135deg, #E85D26, #D4499A);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    font-size: 16px; color: rgba(240,237,232,0.5);
+    line-height: 1.7; margin-bottom: 48px;
+    letter-spacing: 0.02em;
+    animation: fadeUp 0.7s ease 0.2s both;
+  }
+
+  #loc-section { animation: fadeUp 0.7s ease 0.3s both; }
+
+  .loc-btn {
+    background: linear-gradient(135deg, #E85D26, #D4499A);
+    color: white; border: none;
+    padding: 16px 40px; border-radius: 100px;
+    cursor: pointer; font-family: 'Noto Serif TC', serif;
+    font-size: 16px; font-weight: 600; letter-spacing: 0.08em;
+    transition: all 0.3s ease;
+  }
+  .loc-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(232,93,38,0.4);
+  }
+  .loc-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .loc-hint {
+    margin-top: 14px; font-size: 13px;
+    color: rgba(240,237,232,0.35); letter-spacing: 0.05em;
+  }
+
+  .loc-status {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: rgba(46,158,107,0.12); border: 1px solid rgba(46,158,107,0.3);
+    border-radius: 100px; padding: 10px 24px; margin-bottom: 32px;
+    font-size: 15px; color: #5EC99A;
+  }
+
+  .relocate-btn {
+    background: none; border: none; color: rgba(94,201,154,0.5);
+    cursor: pointer; font-size: 12px; letter-spacing: 0.05em;
+    padding: 0 0 0 8px; font-family: inherit;
+    transition: color 0.2s;
+  }
+  .relocate-btn:hover { color: #5EC99A; }
+
+  .cat-label {
+    margin-bottom: 14px; font-size: 12px; letter-spacing: 0.12em;
+    color: rgba(240,237,232,0.3); text-transform: uppercase;
+  }
+
+  .cat-grid {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: center; max-width: 480px;
+  }
+
+  .cat-btn {
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+    color: #F0EDE8; padding: 12px 20px;
+    border-radius: 100px; cursor: pointer;
+    font-family: 'Noto Serif TC', serif;
+    font-size: 14px; letter-spacing: 0.05em;
+    transition: all 0.25s ease;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .cat-btn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+  .cat-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .cat-btn.active {
+    background: rgba(255,255,255,0.1);
+  }
+
+  .error-msg {
+    margin-top: 16px; font-size: 14px; color: #E85D26;
+  }
+
+  /* Loading */
+  #loading {
+    display: none;
+    padding: 80px 20px; text-align: center;
+    flex-direction: column; align-items: center; gap: 20px;
+    position: relative; z-index: 1;
+  }
+  #loading.show { display: flex; }
+
+  .spinner {
+    width: 54px; height: 54px;
+    border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  .loading-text {
+    color: rgba(240,237,232,0.4);
+    letter-spacing: 0.1em; font-size: 15px;
+  }
+
+  /* Results */
+  #results {
+    display: none;
+    padding: 20px 20px 80px;
+    max-width: 780px; margin: 0 auto;
+    position: relative; z-index: 1;
+  }
+  #results.show { display: block; }
+
+  .results-header {
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .results-title-row {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 14px;
+  }
+
+  .results-emoji { font-size: 36px; }
+
+  .results-title {
+    font-size: 26px; font-weight: 600; letter-spacing: -0.01em;
+  }
+
+  .results-area {
+    font-size: 13px; color: rgba(240,237,232,0.35); margin-top: 4px;
+  }
+
+  .results-summary {
+    font-size: 14px; color: rgba(240,237,232,0.55); line-height: 1.75;
+    background: rgba(255,255,255,0.03); padding: 14px 18px;
+    border-radius: 10px; border-left: 3px solid #E85D26;
+  }
+
+  .cards { display: flex; flex-direction: column; gap: 14px; }
+
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 20px 22px;
+    position: relative; overflow: hidden;
+    animation: fadeUp 0.5s ease both;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  }
+  .card:hover { background: rgba(255,255,255,0.07); transform: translateY(-2px); }
+
+  .card-top {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; gap: 12px; margin-bottom: 10px;
+  }
+
+  .card-name {
+    font-size: 18px; font-weight: 600;
+    letter-spacing: -0.01em; margin-bottom: 6px;
+  }
+
+  .card-type {
+    font-size: 12px; padding: 3px 10px;
+    border-radius: 100px; letter-spacing: 0.05em;
+    display: inline-block;
+  }
+
+  .card-rating {
+    font-size: 13px; color: rgba(240,237,232,0.45);
+    text-align: right; flex-shrink: 0; line-height: 1.5;
+  }
+
+  .card-desc {
+    font-size: 14px; color: rgba(240,237,232,0.68);
+    line-height: 1.7; margin-bottom: 12px;
+  }
+
+  .card-addr {
+    font-size: 12px; color: rgba(240,237,232,0.3);
+    display: flex; align-items: center; gap: 5px; margin-bottom: 8px;
+  }
+
+  .card-tip {
+    font-size: 12px; color: rgba(240,237,232,0.5);
+    background: rgba(255,255,255,0.04);
+    padding: 8px 12px; border-radius: 8px;
+    display: flex; gap: 6px;
+  }
+
+  .disclaimer {
+    margin-top: 40px; font-size: 11px;
+    color: rgba(240,237,232,0.2); text-align: center;
+    line-height: 1.8; letter-spacing: 0.03em;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+  }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="glow" style="width:400px;height:400px;background:rgba(232,93,38,0.1);top:5%;left:-8%;"></div>
+<div class="glow" style="width:300px;height:300px;background:rgba(212,73,154,0.08);bottom:15%;right:-5%;"></div>
+
+<!-- Hero -->
+<div id="hero">
+  <div class="badge"><div class="badge-dot"></div>在地探索</div>
+
+  <h1>探索<br><strong>你的周遭</strong></h1>
+
+  <p class="subtitle">定位你的所在地，找出附近的美食、景點<br>和正在舉行的活動展覽</p>
+
+  <div id="loc-section">
+    <!-- Step 1: Locate -->
+    <div id="step-locate">
+      <button class="loc-btn" onclick="getLocation()">📍 開始定位</button>
+      <p class="loc-hint">點擊後請允許瀏覽器存取您的位置</p>
+    </div>
+
+    <!-- Step 2: Located -->
+    <div id="step-located" class="hidden" style="display:flex;flex-direction:column;align-items:center;">
+      <div class="loc-status">
+        <span>📍</span>
+        <span id="loc-name">已取得位置</span>
+        <button class="relocate-btn" onclick="resetLocation()">重新定位</button>
+      </div>
+      <p class="cat-label">選擇類別探索</p>
+      <div class="cat-grid" id="cat-grid"></div>
+    </div>
+
+    <p class="error-msg hidden" id="error-msg"></p>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="spinner" id="spinner"></div>
+  <p class="loading-text" id="loading-text">搜尋中...</p>
+</div>
+
+<!-- Results -->
+<div id="results">
+  <div class="results-header">
+    <div class="results-title-row">
+      <span class="results-emoji" id="res-emoji"></span>
+      <div>
+        <div class="results-title" id="res-title"></div>
+        <div class="results-area" id="res-area"></div>
+      </div>
+    </div>
+    <div class="results-summary" id="res-summary"></div>
+  </div>
+  <div class="cards" id="cards"></div>
+  <p class="disclaimer">⚠️ 以上資訊由 AI 依據座標推薦，建議出發前確認營業狀態<br>活動與展覽資訊尤其可能有所更動</p>
+</div>
+
+<script>
+const CATEGORIES = [
+  { id: "savory",  label: "鹹食",   emoji: "🍜", color: "#E85D26", query: "附近的餐廳、小吃、麵食、飯類、鹹食" },
+  { id: "dessert", label: "甜點",   emoji: "🧁", color: "#D4499A", query: "附近的甜點店、蛋糕、甜食、冰淇淋、麵包" },
+  { id: "drinks",  label: "飲料",   emoji: "🧋", color: "#2E9E6B", query: "附近的飲料店、咖啡廳、手搖飲、茶飲、酒吧" },
+  { id: "sights",  label: "景點",   emoji: "🏛️", color: "#3B6FD4", query: "附近的景點、公園、博物館、廟宇、歷史建築" },
+  { id: "events",  label: "活動展覽", emoji: "🎪", color: "#8B3FD4", query: "附近的活動、展覽、市集、表演、節慶" },
+];
+
+let userLocation = null;
+let activeCategory = null;
+
+// Build category buttons
+const grid = document.getElementById('cat-grid');
+CATEGORIES.forEach(cat => {
+  const btn = document.createElement('button');
+  btn.className = 'cat-btn';
+  btn.id = 'btn-' + cat.id;
+  btn.innerHTML = `<span>${cat.emoji}</span><span>${cat.label}</span>`;
+  btn.onclick = () => search(cat);
+  grid.appendChild(btn);
+});
+
+function getLocation() {
+  const btn = document.querySelector('.loc-btn');
+  btn.disabled = true;
+  btn.textContent = '📍 定位中...';
+  hideError();
+
+  navigator.geolocation.getCurrentPosition(
+    async pos => {
+      userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+      // Reverse geocode
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userLocation.lat}&lon=${userLocation.lng}&format=json&accept-language=zh-TW`);
+        const d = await r.json();
+        const a = d.address;
+        const name = (a.city||'') + (a.district || a.suburb || a.neighbourhood || '');
+        document.getElementById('loc-name').textContent = name || '已取得位置';
+      } catch {
+        document.getElementById('loc-name').textContent = '已取得位置';
+      }
+
+      document.getElementById('step-locate').classList.add('hidden');
+      document.getElementById('step-located').classList.remove('hidden');
+    },
+    err => {
+      btn.disabled = false;
+      btn.textContent = '📍 開始定位';
+      showError('無法取得位置，請確認已開啟定位權限後再試');
+    },
+    { enableHighAccuracy: true, timeout: 12000 }
+  );
+}
+
+function resetLocation() {
+  userLocation = null;
+  document.getElementById('step-locate').classList.remove('hidden');
+  document.getElementById('step-located').classList.add('hidden');
+  document.querySelector('.loc-btn').disabled = false;
+  document.querySelector('.loc-btn').textContent = '📍 開始定位';
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('loading').classList.remove('show');
+  CATEGORIES.forEach(c => {
+    const b = document.getElementById('btn-'+c.id);
+    if(b) { b.classList.remove('active'); b.style.borderColor=''; b.style.color=''; }
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function search(cat) {
+  if (!userLocation) return;
+
+  // Update active button
+  CATEGORIES.forEach(c => {
+    const b = document.getElementById('btn-'+c.id);
+    if(b) { b.classList.remove('active'); b.style.borderColor=''; b.style.color=''; b.disabled=true; }
+  });
+  const activeBtn = document.getElementById('btn-'+cat.id);
+  if(activeBtn) {
+    activeBtn.classList.add('active');
+    activeBtn.style.borderColor = cat.color;
+    activeBtn.style.color = cat.color;
+  }
+
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('spinner').style.borderTopColor = cat.color;
+  document.getElementById('loading-text').textContent = `${cat.emoji} 搜尋附近的${cat.label}中...`;
+  hideError();
+
+  window.scrollTo({ top: document.getElementById('loading').offsetTop - 60, behavior: 'smooth' });
+
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        system: `你是一個在地探索助手，使用繁體中文回覆。根據使用者的GPS座標，提供附近真實存在的推薦清單。
+只回傳 JSON，結構如下（不要加 markdown backtick 或其他文字）：
+{"places":[{"name":"店名","type":"類型","description":"一句話特色","address":"大概地址","rating":"推薦理由","tip":"小提醒"}],"areaName":"區域名稱","summary":"一句話介紹此區域的此類別特色"}
+提供 5-6 個地點。`,
+        messages: [{
+          role: "user",
+          content: `我目前在 GPS 座標：緯度 ${userLocation.lat.toFixed(5)}，經度 ${userLocation.lng.toFixed(5)}。\n請幫我找：${cat.query}\n請提供附近真實的推薦清單。`
+        }]
+      })
+    });
+
+    const data = await resp.json();
+    const text = (data.content||[]).map(b=>b.text||'').join('');
+    const clean = text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+
+    renderResults(parsed, cat);
+  } catch(e) {
+    document.getElementById('loading').classList.remove('show');
+    showError('搜尋時發生錯誤，請再試一次');
+  } finally {
+    CATEGORIES.forEach(c => {
+      const b = document.getElementById('btn-'+c.id);
+      if(b) b.disabled = false;
+    });
+  }
+}
+
+function renderResults(data, cat) {
+  document.getElementById('loading').classList.remove('show');
+
+  document.getElementById('res-emoji').textContent = cat.emoji;
+  document.getElementById('res-title').textContent = `附近的${cat.label}`;
+  document.getElementById('res-area').textContent = '📍 ' + (data.areaName||'');
+  const sumEl = document.getElementById('res-summary');
+  sumEl.textContent = data.summary||'';
+  sumEl.style.borderLeftColor = cat.color;
+
+  const cards = document.getElementById('cards');
+  cards.innerHTML = '';
+
+  (data.places||[]).forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.animationDelay = (i * 0.07) + 's';
+    card.innerHTML = `
+      <div class="card-top">
+        <div>
+          <div class="card-name">${esc(p.name)}</div>
+          <span class="card-type" style="color:${cat.color};background:${cat.color}18">${esc(p.type)}</span>
+        </div>
+        <div class="card-rating">${esc(p.rating||'')}</div>
+      </div>
+      <p class="card-desc">${esc(p.description)}</p>
+      ${p.address ? `<div class="card-addr">📍 ${esc(p.address)}</div>` : ''}
+      ${p.tip ? `<div class="card-tip">💡 ${esc(p.tip)}</div>` : ''}
+    `;
+    cards.appendChild(card);
+  });
+
+  document.getElementById('results').classList.add('show');
+  setTimeout(() => {
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function hideError() {
+  document.getElementById('error-msg').classList.add('hidden');
+}
+</script>
+</body>
+</html>
